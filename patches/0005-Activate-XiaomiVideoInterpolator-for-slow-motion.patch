@@ -1,0 +1,29 @@
+From a911c96c4fa739eec64139d7bc42e365076d1558 Mon Sep 17 00:00:00 2001
+From: marcmyworld <moviesminister@gmail.com>
+Date: Sat, 12 Sep 2026 05:03:12 +0530
+Subject: [PATCH 2/2] Activate XiaomiVideoInterpolator for slow motion
+
+Set X0() to return 1 so SlowMotionModule uses XiaomiVideoInterpolator
+with the proprietary libxmi_slow_motion_mein and libmialgo_utils libraries
+instead of the legacy software interpolator that suffers from color
+format and stride issues.
+---
+ ...릯릣릡맢릡릥맢릨릩릺릥릯릩맢릯릣릡릡릣릢맢릏릣릡릡릣릢.smali | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/smali_classes2/릯릣릡맢릡릥맢릨릩릺릥릯릩맢릯릣릡릡릣릢맢릏릣릡릡릣릢.smali b/smali_classes2/릯릣릡맢릡릥맢릨릩릺릥릯릩맢릯릣릡릡릣릢맢릏릣릡릡릣릢.smali
+index 43523187..0a2cd1a1 100644
+--- a/smali_classes2/릯릣릡맢릡릥맢릨릩릺릥릯릩맢릯릣릡릡릣릢맢릏릣릡릡릣릢.smali
++++ b/smali_classes2/릯릣릡맢릡릥맢릨릩릺릥릯릩맢릯릣릡릡릣릢맢릏릣릡릡릣릢.smali
+@@ -2023,7 +2023,7 @@
+ .method public X0()I
+     .locals 0
+ 
+-    const/4 p0, 0x0
++    const/4 p0, 0x1
+ 
+     return p0
+ .end method
+-- 
+2.55.0
+
