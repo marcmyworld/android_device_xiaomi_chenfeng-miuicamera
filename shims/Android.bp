@@ -1,6 +1,5 @@
 //
-// Copyright (C) 2022 The LineageOS Project
-//
+// Copyright (C) 2024 The LineageOS Project
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,5 +11,5 @@ cc_library {
 cc_library_shared {
     name: "libcamera_snpe_shim",
     srcs: ["libcamera_snpe_shim.cpp"],
-    vendor: true,
+    device_specific: true,
 }
