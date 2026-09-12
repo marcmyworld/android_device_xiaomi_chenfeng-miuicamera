@@ -1,0 +1,219 @@
+From 112e419f48a2bb6521858d2a39458ddd4ddd7709 Mon Sep 17 00:00:00 2001
+From: Antigravity <antigravity@google.com>
+Date: Sat, 12 Sep 2026 23:05:36 +0530
+Subject: [PATCH 09/10] Fix Movie Mode recorder initialization in
+ RecorderController
+
+---
+ .../android/camera/module/VideoModule.smali   | 14 +++
+ .../com/android/camera/module/video/x.smali   | 94 +++++--------------
+ 2 files changed, 36 insertions(+), 72 deletions(-)
+
+diff --git a/smali_classes2/com/android/camera/module/VideoModule.smali b/smali_classes2/com/android/camera/module/VideoModule.smali
+index 831fbd75..c204a152 100644
+--- a/smali_classes2/com/android/camera/module/VideoModule.smali
++++ b/smali_classes2/com/android/camera/module/VideoModule.smali
+@@ -3435,6 +3435,8 @@
+ 
+     iget-object v4, v0, Lcom/android/camera/module/video/o;->b:Lxb/p;
+ 
++    if-eqz v4, :cond_bitrate_fallback
++
+     iget v4, v4, Lxb/p;->h:I
+ 
+     int-to-long v4, v4
+@@ -3446,14 +3448,26 @@
+     :cond_1
+     iget-object v4, p0, Lcom/android/camera/module/VideoBase;->mUserRecordSetting:Lcom/android/camera/module/video/C;
+ 
++    if-eqz v4, :cond_bitrate_fallback
++
+     iget-object v4, v4, Lcom/android/camera/module/video/C;->j:Landroid/media/CamcorderProfile;
+ 
++    if-eqz v4, :cond_bitrate_fallback
++
+     iget v4, v4, Landroid/media/CamcorderProfile;->videoBitRate:I
+ 
+     int-to-long v4, v4
+ 
+     iput-wide v4, p0, Lcom/android/camera/module/VideoModule;->mBitRate:J
+ 
++    goto :cond_bitrate_logged
++
++    :cond_bitrate_fallback
++    const-wide/32 v4, 0x1312d00
++
++    iput-wide v4, p0, Lcom/android/camera/module/VideoModule;->mBitRate:J
++
++    :cond_bitrate_logged
+     iget-object v4, p0, Lcom/android/camera/module/VideoBase;->TAG:Ljava/lang/String;
+ 
+     new-instance v5, Ljava/lang/StringBuilder;
+diff --git a/smali_classes2/com/android/camera/module/video/x.smali b/smali_classes2/com/android/camera/module/video/x.smali
+index acfc4b96..9cd8b924 100644
+--- a/smali_classes2/com/android/camera/module/video/x.smali
++++ b/smali_classes2/com/android/camera/module/video/x.smali
+@@ -536,61 +536,6 @@
+ 
+     move-result v0
+ 
+-    if-eqz v0, :cond_1
+-
+-    sget-boolean v0, Lu7/b;->i:Z
+-
+-    sget-object v0, Lu7/b$b;->a:Lu7/b;
+-
+-    iget-object v3, v0, Lu7/b;->e:L릯릣릡맢릡릥맢릨릩릺릥릯릩맢릯릣릡릡릣릢맢릏릣릡릡릣릢;
+-
+-    invoke-virtual {v3}, L릯릣릡맢릡릥맢릨릩릺릥릯릩맢릯릣릡릡릣릢맢릏릣릡릡릣릢;->L4()Z
+-
+-    move-result v3
+-
+-    if-eqz v3, :cond_1
+-
+-    new-instance v3, Lxb/q;
+-
+-    invoke-direct {v3}, Ljava/lang/Object;-><init>()V
+-
+-    new-instance v5, Lxb/l;
+-
+-    invoke-direct {v5}, Lxb/l;-><init>()V
+-
+-    iput-object v5, v3, Lxb/q;->a:Lxb/l;
+-
+-    iput-object v3, p0, Lcom/android/camera/module/video/x;->a:Lxb/o;
+-
+-    sget-object v6, Ll4/C;->h:Ljava/lang/String;
+-
+-    iput-object v6, v5, Lxb/l;->t:Ljava/lang/String;
+-
+-    invoke-static {}, Lcom/android/camera/module/P;->g()Z
+-
+-    move-result v5
+-
+-    if-eqz v5, :cond_0
+-
+-    iget-object v0, v0, Lu7/b;->e:L릯릣릡맢릡릥맢릨릩릺릥릯릩맢릯릣릡릡릣릢맢릏릣릡릡릣릢;
+-
+-    invoke-virtual {v0}, Ljava/lang/Object;->getClass()Ljava/lang/Class;
+-
+-    :cond_0
+-    invoke-interface {v3}, Lxb/o;->l()V
+-
+-    goto :goto_0
+-
+-    :catchall_0
+-    move-exception p0
+-
+-    goto :goto_2
+-
+-    :cond_1
+-    invoke-static {}, Lcom/android/camera/module/P;->g()Z
+-
+-    move-result v0
+-
+     if-nez v0, :cond_2
+ 
+     sget-boolean v0, Lu7/b;->i:Z
+@@ -627,17 +572,17 @@
+ 
+     invoke-direct {v3, v1}, Ljava/lang/StringBuilder;-><init>(Ljava/lang/String;)V
+ 
+-    iget-object p0, p0, Lcom/android/camera/module/video/x;->a:Lxb/o;
++    iget-object v1, p0, Lcom/android/camera/module/video/x;->a:Lxb/o;
+ 
+-    invoke-virtual {v3, p0}, Ljava/lang/StringBuilder;->append(Ljava/lang/Object;)Ljava/lang/StringBuilder;
++    invoke-virtual {v3, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/Object;)Ljava/lang/StringBuilder;
+ 
+     invoke-virtual {v3}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
+ 
+-    move-result-object p0
++    move-result-object v1
+ 
+-    new-array v1, v4, [Ljava/lang/Object;
++    new-array v3, v4, [Ljava/lang/Object;
+ 
+-    invoke-static {v0, p0, v1}, Lcom/android/camera/log/Log;->d(Ljava/lang/String;Ljava/lang/String;[Ljava/lang/Object;)V
++    invoke-static {v0, v1, v3}, Lcom/android/camera/log/Log;->d(Ljava/lang/String;Ljava/lang/String;[Ljava/lang/Object;)V
+ 
+     goto :goto_1
+ 
+@@ -646,15 +591,15 @@
+ 
+     move-result-wide v5
+ 
+-    iget-object p0, p0, Lcom/android/camera/module/video/x;->a:Lxb/o;
++    iget-object v1, p0, Lcom/android/camera/module/video/x;->a:Lxb/o;
+ 
+-    invoke-interface {p0}, Lxb/o;->reset()V
++    invoke-interface {v1}, Lxb/o;->reset()V
+ 
+-    const-string p0, "RecorderController"
++    const-string v1, "RecorderController"
+ 
+-    new-instance v1, Ljava/lang/StringBuilder;
++    new-instance v3, Ljava/lang/StringBuilder;
+ 
+-    invoke-direct {v1, v0}, Ljava/lang/StringBuilder;-><init>(Ljava/lang/String;)V
++    invoke-direct {v3, v0}, Ljava/lang/StringBuilder;-><init>(Ljava/lang/String;)V
+ 
+     invoke-static {}, Ljava/lang/System;->currentTimeMillis()J
+ 
+@@ -662,27 +607,29 @@
+ 
+     sub-long/2addr v7, v5
+ 
+-    invoke-virtual {v1, v7, v8}, Ljava/lang/StringBuilder;->append(J)Ljava/lang/StringBuilder;
++    invoke-virtual {v3, v7, v8}, Ljava/lang/StringBuilder;->append(J)Ljava/lang/StringBuilder;
+ 
+-    invoke-virtual {v1}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
++    invoke-virtual {v3}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
+ 
+     move-result-object v0
+ 
+-    new-array v1, v4, [Ljava/lang/Object;
++    new-array v3, v4, [Ljava/lang/Object;
+ 
+-    invoke-static {p0, v0, v1}, Lcom/android/camera/log/Log;->d(Ljava/lang/String;Ljava/lang/String;[Ljava/lang/Object;)V
++    invoke-static {v1, v0, v3}, Lcom/android/camera/log/Log;->d(Ljava/lang/String;Ljava/lang/String;[Ljava/lang/Object;)V
+ 
+     :goto_1
+     monitor-exit v2
+ 
+     return-void
+ 
+-    :goto_2
++    :catchall_0
++    move-exception v0
++
+     monitor-exit v2
+     :try_end_0
+     .catchall {:try_start_0 .. :try_end_0} :catchall_0
+ 
+-    throw p0
++    throw v0
+ .end method
+ 
+ .method public final f(I)I
+@@ -1178,6 +1125,7 @@
+ 
+     invoke-virtual {v1, v2, v10, v14}, Lcom/android/camera/module/video/x;->j(Lcom/android/camera/module/video/AiAudioController;ZLandroid/content/Context;)V
+     :try_end_3
++    .catch Ljava/lang/Exception; {:try_start_3 .. :try_end_3} :catch_6
+     .catchall {:try_start_3 .. :try_end_3} :catchall_0
+ 
+     :try_start_4
+@@ -2977,7 +2925,9 @@
+ 
+     iget v4, v6, Lcom/android/camera/module/video/C;->f:I
+ 
+-    iput v4, v8, Lxb/p;->j:I
++    const/16 v7, 0x1e
++
++    iput v7, v8, Lxb/p;->j:I
+ 
+     invoke-virtual {v6}, Lcom/android/camera/module/video/C;->d()I
+ 
+-- 
+2.55.0
+

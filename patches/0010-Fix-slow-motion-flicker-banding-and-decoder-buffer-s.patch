@@ -1,0 +1,344 @@
+From 41c14ee32e6b8ddbdbff7b9f0b4a5e29689588fb Mon Sep 17 00:00:00 2001
+From: Antigravity <antigravity@google.com>
+Date: Sat, 12 Sep 2026 23:05:40 +0530
+Subject: [PATCH 10/10] Fix slow motion flicker banding and decoder buffer
+ stride
+
+---
+ .../extravideo/common/MediaParamsHolder.smali | 94 ++++++++++++++++---
+ .../xaiomiAlogMedia/MediaParamsHolder.smali   | 94 ++++++++++++++++---
+ smali_classes2/Z5/H.smali                     |  6 +-
+ smali_classes2/Z5/V.smali                     | 10 ++
+ 4 files changed, 176 insertions(+), 28 deletions(-)
+
+diff --git a/smali/com/miui/extravideo/common/MediaParamsHolder.smali b/smali/com/miui/extravideo/common/MediaParamsHolder.smali
+index f5e1e030..ca8b8afc 100644
+--- a/smali/com/miui/extravideo/common/MediaParamsHolder.smali
++++ b/smali/com/miui/extravideo/common/MediaParamsHolder.smali
+@@ -57,7 +57,15 @@
+ 
+ # virtual methods
+ .method public setFormat(Landroid/media/MediaFormat;)V
+-    .locals 2
++    .locals 3
++
++    const-string/jumbo v0, "stride"
++
++    invoke-virtual {p1, v0}, Landroid/media/MediaFormat;->containsKey(Ljava/lang/String;)Z
++
++    move-result v0
++
++    if-eqz v0, :cond_default_stride
+ 
+     const-string/jumbo v0, "stride"
+ 
+@@ -65,47 +73,107 @@
+ 
+     move-result v0
+ 
++    goto :goto_stride
++
++    :cond_default_stride
++    iget v0, p0, Lcom/miui/extravideo/common/MediaParamsHolder;->videoWidth:I
++
++    :goto_stride
+     iput v0, p0, Lcom/miui/extravideo/common/MediaParamsHolder;->stride:I
+ 
+     const-string v0, "crop-top"
+ 
++    invoke-virtual {p1, v0}, Landroid/media/MediaFormat;->containsKey(Ljava/lang/String;)Z
++
++    move-result v0
++
++    if-eqz v0, :cond_zero_top
++
++    const-string v0, "crop-top"
++
+     invoke-virtual {p1, v0}, Landroid/media/MediaFormat;->getInteger(Ljava/lang/String;)I
+ 
+     move-result v0
+ 
++    goto :goto_top
++
++    :cond_zero_top
++    const/4 v0, 0x0
++
++    :goto_top
+     iput v0, p0, Lcom/miui/extravideo/common/MediaParamsHolder;->topPaddingSize:I
+ 
+-    const-string v0, "crop-bottom"
++    const-string v0, "crop-left"
++
++    invoke-virtual {p1, v0}, Landroid/media/MediaFormat;->containsKey(Ljava/lang/String;)Z
++
++    move-result v0
++
++    if-eqz v0, :cond_zero_left
++
++    const-string v0, "crop-left"
+ 
+     invoke-virtual {p1, v0}, Landroid/media/MediaFormat;->getInteger(Ljava/lang/String;)I
+ 
+     move-result v0
+ 
+-    const-string v1, "crop-left"
++    goto :goto_left
+ 
+-    invoke-virtual {p1, v1}, Landroid/media/MediaFormat;->getInteger(Ljava/lang/String;)I
++    :cond_zero_left
++    const/4 v0, 0x0
++
++    :goto_left
++    iput v0, p0, Lcom/miui/extravideo/common/MediaParamsHolder;->leftPaddingSize:I
++
++    const-string v0, "height"
++
++    invoke-virtual {p1, v0}, Landroid/media/MediaFormat;->containsKey(Ljava/lang/String;)Z
++
++    move-result v0
++
++    if-eqz v0, :cond_default_height
++
++    const-string v0, "height"
++
++    invoke-virtual {p1, v0}, Landroid/media/MediaFormat;->getInteger(Ljava/lang/String;)I
++
++    move-result v0
++
++    goto :goto_height
++
++    :cond_default_height
++    iget v0, p0, Lcom/miui/extravideo/common/MediaParamsHolder;->videoHeight:I
++
++    :goto_height
++    const-string v1, "slice-height"
++
++    invoke-virtual {p1, v1}, Landroid/media/MediaFormat;->containsKey(Ljava/lang/String;)Z
+ 
+     move-result v1
+ 
+-    iput v1, p0, Lcom/miui/extravideo/common/MediaParamsHolder;->leftPaddingSize:I
++    if-eqz v1, :cond_calc_align
+ 
+-    const-string v1, "height"
++    const-string v1, "slice-height"
+ 
+     invoke-virtual {p1, v1}, Landroid/media/MediaFormat;->getInteger(Ljava/lang/String;)I
+ 
+-    move-result p1
++    move-result v1
++
++    if-le v1, v0, :cond_calc_align
+ 
+-    iget v1, p0, Lcom/miui/extravideo/common/MediaParamsHolder;->topPaddingSize:I
++    sub-int/2addr v1, v0
+ 
+-    sub-int/2addr v0, v1
++    goto :goto_interval
+ 
+-    add-int/lit8 v0, v0, 0x1
++    :cond_calc_align
++    add-int/lit8 v1, v0, 0x1f
+ 
+-    sub-int/2addr p1, v0
++    and-int/lit8 v1, v1, -0x20
+ 
+-    sub-int/2addr p1, v1
++    sub-int/2addr v1, v0
+ 
+-    iput p1, p0, Lcom/miui/extravideo/common/MediaParamsHolder;->intervalPaddingSize:I
++    :goto_interval
++    iput v1, p0, Lcom/miui/extravideo/common/MediaParamsHolder;->intervalPaddingSize:I
+ 
+     return-void
+ .end method
+diff --git a/smali/com/miui/extravideoxmalgo/xaiomiAlogMedia/MediaParamsHolder.smali b/smali/com/miui/extravideoxmalgo/xaiomiAlogMedia/MediaParamsHolder.smali
+index 6f10f5d9..1bb9a039 100644
+--- a/smali/com/miui/extravideoxmalgo/xaiomiAlogMedia/MediaParamsHolder.smali
++++ b/smali/com/miui/extravideoxmalgo/xaiomiAlogMedia/MediaParamsHolder.smali
+@@ -49,7 +49,15 @@
+ 
+ # virtual methods
+ .method public setFormat(Landroid/media/MediaFormat;)V
+-    .locals 2
++    .locals 3
++
++    const-string/jumbo v0, "stride"
++
++    invoke-virtual {p1, v0}, Landroid/media/MediaFormat;->containsKey(Ljava/lang/String;)Z
++
++    move-result v0
++
++    if-eqz v0, :cond_default_stride
+ 
+     const-string/jumbo v0, "stride"
+ 
+@@ -57,47 +65,107 @@
+ 
+     move-result v0
+ 
++    goto :goto_stride
++
++    :cond_default_stride
++    iget v0, p0, Lcom/miui/extravideoxmalgo/xaiomiAlogMedia/MediaParamsHolder;->videoWidth:I
++
++    :goto_stride
+     iput v0, p0, Lcom/miui/extravideoxmalgo/xaiomiAlogMedia/MediaParamsHolder;->stride:I
+ 
+     const-string v0, "crop-top"
+ 
++    invoke-virtual {p1, v0}, Landroid/media/MediaFormat;->containsKey(Ljava/lang/String;)Z
++
++    move-result v0
++
++    if-eqz v0, :cond_zero_top
++
++    const-string v0, "crop-top"
++
+     invoke-virtual {p1, v0}, Landroid/media/MediaFormat;->getInteger(Ljava/lang/String;)I
+ 
+     move-result v0
+ 
++    goto :goto_top
++
++    :cond_zero_top
++    const/4 v0, 0x0
++
++    :goto_top
+     iput v0, p0, Lcom/miui/extravideoxmalgo/xaiomiAlogMedia/MediaParamsHolder;->topPaddingSize:I
+ 
+-    const-string v0, "crop-bottom"
++    const-string v0, "crop-left"
++
++    invoke-virtual {p1, v0}, Landroid/media/MediaFormat;->containsKey(Ljava/lang/String;)Z
++
++    move-result v0
++
++    if-eqz v0, :cond_zero_left
++
++    const-string v0, "crop-left"
+ 
+     invoke-virtual {p1, v0}, Landroid/media/MediaFormat;->getInteger(Ljava/lang/String;)I
+ 
+     move-result v0
+ 
+-    const-string v1, "crop-left"
++    goto :goto_left
+ 
+-    invoke-virtual {p1, v1}, Landroid/media/MediaFormat;->getInteger(Ljava/lang/String;)I
++    :cond_zero_left
++    const/4 v0, 0x0
++
++    :goto_left
++    iput v0, p0, Lcom/miui/extravideoxmalgo/xaiomiAlogMedia/MediaParamsHolder;->leftPaddingSize:I
++
++    const-string v0, "height"
++
++    invoke-virtual {p1, v0}, Landroid/media/MediaFormat;->containsKey(Ljava/lang/String;)Z
++
++    move-result v0
++
++    if-eqz v0, :cond_default_height
++
++    const-string v0, "height"
++
++    invoke-virtual {p1, v0}, Landroid/media/MediaFormat;->getInteger(Ljava/lang/String;)I
++
++    move-result v0
++
++    goto :goto_height
++
++    :cond_default_height
++    iget v0, p0, Lcom/miui/extravideoxmalgo/xaiomiAlogMedia/MediaParamsHolder;->videoHeight:I
++
++    :goto_height
++    const-string v1, "slice-height"
++
++    invoke-virtual {p1, v1}, Landroid/media/MediaFormat;->containsKey(Ljava/lang/String;)Z
+ 
+     move-result v1
+ 
+-    iput v1, p0, Lcom/miui/extravideoxmalgo/xaiomiAlogMedia/MediaParamsHolder;->leftPaddingSize:I
++    if-eqz v1, :cond_calc_align
+ 
+-    const-string v1, "height"
++    const-string v1, "slice-height"
+ 
+     invoke-virtual {p1, v1}, Landroid/media/MediaFormat;->getInteger(Ljava/lang/String;)I
+ 
+-    move-result p1
++    move-result v1
++
++    if-le v1, v0, :cond_calc_align
+ 
+-    iget v1, p0, Lcom/miui/extravideoxmalgo/xaiomiAlogMedia/MediaParamsHolder;->topPaddingSize:I
++    sub-int/2addr v1, v0
+ 
+-    sub-int/2addr v0, v1
++    goto :goto_interval
+ 
+-    add-int/lit8 v0, v0, 0x1
++    :cond_calc_align
++    add-int/lit8 v1, v0, 0x1f
+ 
+-    sub-int/2addr p1, v0
++    and-int/lit8 v1, v1, -0x20
+ 
+-    sub-int/2addr p1, v1
++    sub-int/2addr v1, v0
+ 
+-    iput p1, p0, Lcom/miui/extravideoxmalgo/xaiomiAlogMedia/MediaParamsHolder;->intervalPaddingSize:I
++    :goto_interval
++    iput v1, p0, Lcom/miui/extravideoxmalgo/xaiomiAlogMedia/MediaParamsHolder;->intervalPaddingSize:I
+ 
+     return-void
+ .end method
+diff --git a/smali_classes2/Z5/H.smali b/smali_classes2/Z5/H.smali
+index 357ba3a0..ae26fdb5 100644
+--- a/smali_classes2/Z5/H.smali
++++ b/smali_classes2/Z5/H.smali
+@@ -4470,8 +4470,11 @@
+ 
+     const/4 v0, -0x1
+ 
+-    if-eq p1, v0, :cond_1
++    if-ne p1, v0, :cond_0_auto
++
++    const/4 p1, 0x3
+ 
++    :cond_0_auto
+     sget-object v0, Landroid/hardware/camera2/CaptureRequest;->CONTROL_AE_ANTIBANDING_MODE:Landroid/hardware/camera2/CaptureRequest$Key;
+ 
+     invoke-static {p1}, Ljava/lang/Integer;->valueOf(I)Ljava/lang/Integer;
+@@ -4482,7 +4485,6 @@
+ 
+     invoke-static {p0, v0, p1, v1}, Ln6/N;->b(Landroid/hardware/camera2/CaptureRequest$Builder;Landroid/hardware/camera2/CaptureRequest$Key;Ljava/lang/Object;Z)V
+ 
+-    :cond_1
+     return-void
+ .end method
+ 
+diff --git a/smali_classes2/Z5/V.smali b/smali_classes2/Z5/V.smali
+index bb366c2c..4ecbc423 100644
+--- a/smali_classes2/Z5/V.smali
++++ b/smali_classes2/Z5/V.smali
+@@ -15974,6 +15974,16 @@
+ 
+     invoke-static {p2, p4, v1, v2}, Ln6/N;->b(Landroid/hardware/camera2/CaptureRequest$Builder;Landroid/hardware/camera2/CaptureRequest$Key;Ljava/lang/Object;Z)V
+ 
++    sget-object p4, Landroid/hardware/camera2/CaptureRequest;->CONTROL_AE_ANTIBANDING_MODE:Landroid/hardware/camera2/CaptureRequest$Key;
++
++    const/4 v1, 0x3
++
++    invoke-static {v1}, Ljava/lang/Integer;->valueOf(I)Ljava/lang/Integer;
++
++    move-result-object v1
++
++    invoke-static {p2, p4, v1, v2}, Ln6/N;->b(Landroid/hardware/camera2/CaptureRequest$Builder;Landroid/hardware/camera2/CaptureRequest$Key;Ljava/lang/Object;Z)V
++
+     iget-object p2, p0, LZ5/V;->T:Ljava/lang/Object;
+ 
+     monitor-enter p2
+-- 
+2.55.0
+
