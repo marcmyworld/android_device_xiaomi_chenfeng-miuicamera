@@ -1,0 +1,268 @@
+From 14befbf556d50326fc00096dea30c92196860e83 Mon Sep 17 00:00:00 2001
+From: Antigravity <antigravity@google.com>
+Date: Sat, 12 Sep 2026 05:52:07 +0530
+Subject: [PATCH 8/8] Fix Leica beautify features and guard against
+ IndexOutOfBoundsException
+
+---
+ smali/f0/c0.smali                             | 48 +++++++++++--------
+ smali/u7/c.smali                              | 27 ++++++++++-
+ .../beauty/BeautyJsonParamsFragment.smali     | 23 +++++++++
+ smali_classes2/t6/b.smali                     | 39 +++++++++++++++
+ 4 files changed, 116 insertions(+), 21 deletions(-)
+
+diff --git a/smali/f0/c0.smali b/smali/f0/c0.smali
+index c05d2755..5ff33436 100644
+--- a/smali/f0/c0.smali
++++ b/smali/f0/c0.smali
+@@ -1017,7 +1017,7 @@
+     :try_end_1
+     .catch Ljava/lang/Exception; {:try_start_1 .. :try_end_1} :catch_0
+ 
+-    goto :goto_3
++    goto :goto_4
+ 
+     :catch_0
+     move-exception v6
+@@ -1037,44 +1037,49 @@
+ 
+     invoke-static {v8, v4, v6}, Lcom/android/camera/log/Log;->w(Ljava/lang/String;Ljava/lang/String;[Ljava/lang/Object;)V
+ 
+-    invoke-static {}, Lu7/c;->b()Z
+-
+-    move-result v4
+-
+-    if-nez v4, :cond_6
+-
+     invoke-static {}, Lu7/c;->e()Z
+ 
+     move-result v4
+ 
+-    if-eqz v4, :cond_5
++    if-eqz v4, :cond_try_gl
+ 
+     const-string v4, "INRegion"
+ 
+-    goto :goto_2
++    invoke-virtual {v5, v4}, Lorg/json/JSONObject;->optJSONObject(Ljava/lang/String;)Lorg/json/JSONObject;
+ 
+-    :catch_1
+-    move-exception p0
++    move-result-object v2
+ 
+-    goto :goto_5
++    if-eqz v2, :cond_try_gl
+ 
+-    :cond_5
++    goto :goto_4
++
++    :cond_try_gl
+     const-string v4, "GLRegion"
+ 
+-    :goto_2
+-    invoke-virtual {v5, v4}, Lorg/json/JSONObject;->getJSONObject(Ljava/lang/String;)Lorg/json/JSONObject;
++    invoke-virtual {v5, v4}, Lorg/json/JSONObject;->optJSONObject(Ljava/lang/String;)Lorg/json/JSONObject;
+ 
+-    move-result-object v5
++    move-result-object v2
+ 
+-    :cond_6
+-    :goto_3
+-    if-eqz v2, :cond_7
++    if-eqz v2, :cond_try_cn
+ 
+     goto :goto_4
+ 
+-    :cond_7
++    :cond_try_cn
++    const-string v4, "CNRegion"
++
++    invoke-virtual {v5, v4}, Lorg/json/JSONObject;->optJSONObject(Ljava/lang/String;)Lorg/json/JSONObject;
++
++    move-result-object v2
++
++    if-eqz v2, :cond_use_root
++
++    goto :goto_4
++
++    :cond_use_root
+     move-object v2, v5
+ 
++    goto :goto_4
++
+     :goto_4
+     invoke-static {p1, v2}, Lc6/b;->d(Ljava/lang/String;Lorg/json/JSONObject;)I
+ 
+@@ -1122,6 +1127,9 @@
+ 
+     goto :goto_6
+ 
++    :catch_1
++    move-exception p0
++
+     :goto_5
+     const-string/jumbo p1, "parse json exception\uff1a"
+ 
+diff --git a/smali/u7/c.smali b/smali/u7/c.smali
+index aefc8395..f7e0d7c7 100644
+--- a/smali/u7/c.smali
++++ b/smali/u7/c.smali
+@@ -143,7 +143,7 @@
+ 
+     const-string/jumbo v0, "ro.miui.build.region"
+ 
+-    const-string v3, "cn"
++    const-string v3, "global"
+ 
+     invoke-static {v0, v3}, LYb/f;->b(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
+ 
+@@ -326,6 +326,15 @@
+ .method public static b()Z
+     .locals 2
+ 
++    sget-boolean v0, Lu7/c;->m:Z
++
++    if-eqz v0, :cond_0
++
++    const/4 v0, 0x0
++
++    return v0
++
++    :cond_0
+     const-string v0, "cn"
+ 
+     sget-object v1, Lu7/c;->f:Ljava/lang/String;
+@@ -411,6 +420,22 @@
+ 
+     move-result v0
+ 
++    if-nez v0, :cond_0
++
++    invoke-static {}, Lu7/c;->f()Z
++
++    move-result v0
++
++    if-eqz v0, :cond_1
++
++    :cond_0
++    const/4 v0, 0x1
++
++    return v0
++
++    :cond_1
++    const/4 v0, 0x0
++
+     return v0
+ .end method
+ 
+diff --git a/smali_classes2/com/android/camera/fragment/beauty/BeautyJsonParamsFragment.smali b/smali_classes2/com/android/camera/fragment/beauty/BeautyJsonParamsFragment.smali
+index 154325a5..fdfbfb6f 100644
+--- a/smali_classes2/com/android/camera/fragment/beauty/BeautyJsonParamsFragment.smali
++++ b/smali_classes2/com/android/camera/fragment/beauty/BeautyJsonParamsFragment.smali
+@@ -4642,10 +4642,20 @@
+ 
+     iget-object v2, p0, Lcom/android/camera/fragment/beauty/BeautyJsonParamsFragment;->o:Ljava/util/List;
+ 
++    if-eqz v2, :cond_skip_q5
++
+     iget v3, p0, Lcom/android/camera/fragment/beauty/BeautyJsonParamsFragment;->r:I
+ 
+     sub-int/2addr v3, v0
+ 
++    if-ltz v3, :cond_skip_q5
++
++    invoke-interface {v2}, Ljava/util/List;->size()I
++
++    move-result v0
++
++    if-ge v3, v0, :cond_skip_q5
++
+     invoke-interface {v2, v3}, Ljava/util/List;->get(I)Ljava/lang/Object;
+ 
+     move-result-object v2
+@@ -4674,8 +4684,11 @@
+ 
+     iget-object p0, p0, Lcom/android/camera/fragment/beauty/BaseSlideViewPagerFragment;->mCombineSlideView:Lcom/android/camera/ui/CombineSlideView;
+ 
++    const/4 v0, 0x1
++
+     invoke-virtual {p0, v1, v0}, Lcom/android/camera/ui/CombineSlideView;->k(FZ)V
+ 
++    :cond_skip_q5
+     return-void
+ .end method
+ 
+@@ -5639,10 +5652,20 @@
+ 
+     iget-object v0, p0, Lcom/android/camera/fragment/beauty/BeautyJsonParamsFragment;->o:Ljava/util/List;
+ 
++    if-eqz v0, :cond_1
++
+     iget v2, p0, Lcom/android/camera/fragment/beauty/BeautyJsonParamsFragment;->r:I
+ 
+     sub-int/2addr v2, v1
+ 
++    if-ltz v2, :cond_1
++
++    invoke-interface {v0}, Ljava/util/List;->size()I
++
++    move-result v3
++
++    if-ge v2, v3, :cond_1
++
+     invoke-interface {v0, v2}, Ljava/util/List;->get(I)Ljava/lang/Object;
+ 
+     move-result-object v0
+diff --git a/smali_classes2/t6/b.smali b/smali_classes2/t6/b.smali
+index 4f9e52e0..48c6f9e2 100644
+--- a/smali_classes2/t6/b.smali
++++ b/smali_classes2/t6/b.smali
+@@ -810,6 +810,45 @@
+ 
+     move-result-object v0
+ 
++    invoke-static {v0}, Landroid/text/TextUtils;->isEmpty(Ljava/lang/CharSequence;)Z
++
++    move-result v1
++
++    if-eqz v1, :cond_has_reg
++
++    const-string/jumbo v0, "ro.boot.hwc"
++
++    invoke-static {v0}, LYb/f;->a(Ljava/lang/String;)Ljava/lang/String;
++
++    move-result-object v0
++
++    :cond_has_reg
++    invoke-static {v0}, Landroid/text/TextUtils;->isEmpty(Ljava/lang/CharSequence;)Z
++
++    move-result v1
++
++    if-eqz v1, :cond_has_hwc
++
++    const-string v0, "IN"
++
++    :cond_has_hwc
++    sget-object v1, Ljava/util/Locale;->ROOT:Ljava/util/Locale;
++
++    invoke-virtual {v0, v1}, Ljava/lang/String;->toUpperCase(Ljava/util/Locale;)Ljava/lang/String;
++
++    move-result-object v0
++
++    const-string v1, "INDIA"
++
++    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
++
++    move-result v1
++
++    if-eqz v1, :cond_not_in
++
++    const-string v0, "IN"
++
++    :cond_not_in
+     sput-object v0, Lt6/b;->c0:Ljava/lang/String;
+ 
+     const-string v0, "ro.miui.customized.region"
+-- 
+2.55.0
+
