@@ -1,0 +1,82 @@
+From afbcc70cd91baa1df97a5184976cd5261ddfb0b9 Mon Sep 17 00:00:00 2001
+From: Antigravity <antigravity@google.com>
+Date: Mon, 14 Sep 2026 00:52:00 +0530
+Subject: [PATCH] Fix Movie Mode preview aspect ratio and activate Xiaomi slow
+ motion algorithm for Chenfeng
+
+---
+ .../features/mode/cinematic/CinematicModule.smali    | 12 +++++++-----
+ .../android/camera/module/video/ProVideoModule.smali | 12 +++++++-----
+ ...쌔쌖썕쌖쌒썕쌟쌞쌍쌒쌘쌞썕쌸쌓쌞쌕쌝쌞쌕쌜.smali  |  2 +-
+ 3 files changed, 15 insertions(+), 11 deletions(-)
+
+diff --git a/smali/com/android/camera/features/mode/cinematic/CinematicModule.smali b/smali/com/android/camera/features/mode/cinematic/CinematicModule.smali
+index 6a806f6c..105aed12 100644
+--- a/smali/com/android/camera/features/mode/cinematic/CinematicModule.smali
++++ b/smali/com/android/camera/features/mode/cinematic/CinematicModule.smali
+@@ -1483,15 +1483,17 @@
+     :cond_0
+     invoke-virtual {p0, v1, v2}, Lcom/android/camera/module/VideoModule;->updateVideoSize(D)V
+ 
+-    iget-object v0, p0, Lcom/android/camera/module/VideoBase;->mUserRecordSetting:Lcom/android/camera/module/video/C;
++    new-instance v0, Landroid/util/Size;
+ 
+-    iget-object v0, v0, Lcom/android/camera/module/video/C;->c:Landroid/util/Size;
++    const/16 v1, 0x780
+ 
+-    invoke-virtual {p0, v1, v2, v0}, Lcom/android/camera/module/VideoModule;->updatePictureSize(DLandroid/util/Size;)V
++    const/16 v2, 0x438
+ 
+-    iget-object v0, p0, Lcom/android/camera/module/VideoBase;->mUserRecordSetting:Lcom/android/camera/module/video/C;
++    invoke-direct {v0, v1, v2}, Landroid/util/Size;-><init>(II)V
+ 
+-    iget-object v0, v0, Lcom/android/camera/module/video/C;->c:Landroid/util/Size;
++    const-wide v1, 0x3ffc71c71c71c71cL    # 1.7777777777777777
++
++    invoke-virtual {p0, v1, v2, v0}, Lcom/android/camera/module/VideoModule;->updatePictureSize(DLandroid/util/Size;)V
+ 
+     invoke-virtual {p0, v1, v2, v0}, Lcom/android/camera/module/VideoModule;->updatePreviewSize(DLandroid/util/Size;)V
+ 
+diff --git a/smali_classes2/com/android/camera/module/video/ProVideoModule.smali b/smali_classes2/com/android/camera/module/video/ProVideoModule.smali
+index d7f1b9b3..e1d33a7b 100644
+--- a/smali_classes2/com/android/camera/module/video/ProVideoModule.smali
++++ b/smali_classes2/com/android/camera/module/video/ProVideoModule.smali
+@@ -2405,15 +2405,17 @@
+     :cond_0
+     invoke-virtual {p0, v1, v2}, Lcom/android/camera/module/VideoModule;->updateVideoSize(D)V
+ 
+-    iget-object v0, p0, Lcom/android/camera/module/VideoBase;->mUserRecordSetting:Lcom/android/camera/module/video/C;
++    new-instance v0, Landroid/util/Size;
+ 
+-    iget-object v0, v0, Lcom/android/camera/module/video/C;->c:Landroid/util/Size;
++    const/16 v1, 0x780
+ 
+-    invoke-virtual {p0, v1, v2, v0}, Lcom/android/camera/module/VideoModule;->updatePictureSize(DLandroid/util/Size;)V
++    const/16 v2, 0x438
+ 
+-    iget-object v0, p0, Lcom/android/camera/module/VideoBase;->mUserRecordSetting:Lcom/android/camera/module/video/C;
++    invoke-direct {v0, v1, v2}, Landroid/util/Size;-><init>(II)V
+ 
+-    iget-object v0, v0, Lcom/android/camera/module/video/C;->c:Landroid/util/Size;
++    const-wide v1, 0x3ffc71c71c71c71cL    # 1.7777777777777777
++
++    invoke-virtual {p0, v1, v2, v0}, Lcom/android/camera/module/VideoModule;->updatePictureSize(DLandroid/util/Size;)V
+ 
+     invoke-virtual {p0, v1, v2, v0}, Lcom/android/camera/module/VideoModule;->updatePreviewSize(DLandroid/util/Size;)V
+ 
+diff --git a/smali_classes2/쌘쌔쌖썕쌖쌒썕쌟쌞쌍쌒쌘쌞썕쌸쌓쌞쌕쌝쌞쌕쌜.smali b/smali_classes2/쌘쌔쌖썕쌖쌒썕쌟쌞쌍쌒쌘쌞썕쌸쌓쌞쌕쌝쌞쌕쌜.smali
+index aa8465f7..73e88f8e 100644
+--- a/smali_classes2/쌘쌔쌖썕쌖쌒썕쌟쌞쌍쌒쌘쌞썕쌸쌓쌞쌕쌝쌞쌕쌜.smali
++++ b/smali_classes2/쌘쌔쌖썕쌖쌒썕쌟쌞쌍쌒쌘쌞썕쌸쌓쌞쌕쌝쌞쌕쌜.smali
+@@ -209,7 +209,7 @@
+ .method public final X0()I
+     .locals 0
+ 
+-    const/4 p0, 0x0
++    const/4 p0, 0x1
+ 
+     return p0
+ .end method
+-- 
+2.55.0
+
