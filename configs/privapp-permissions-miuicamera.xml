@@ -14,5 +14,11 @@
       <permission name="android.permission.TURN_SCREEN_ON" />
       <permission name="android.permission.SUBSCRIBE_TO_KEYGUARD_LOCKED_STATE" />
       <permission name="android.permission.READ_PHONE_STATE" />
+      <permission name="android.permission.INTERACT_ACROSS_USERS_FULL" />
+      <permission name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+      <permission name="android.permission.DEVICE_POWER" />
+      <permission name="android.permission.CONTROL_DISPLAY_BRIGHTNESS" />
+      <permission name="android.permission.CONTROL_DEVICE_STATE" />
+      <permission name="android.permission.INJECT_EVENTS" />
    </privapp-permissions>
 </permissions>
